@@ -1,0 +1,5 @@
+https://www.kaggle.com/residentmario/database-of-battles
+
+This dataset is a cleaned-up and modernized version of "CAA Database of Battles, Version 1990", shortnamed "CDB90". 
+It contains information on over 600 battles that were fought between 1600 AD and 1973 AD. 
+Descriptive data include battle name, date, and location; the strengths and losses on each side; identification of the victor; temporal duration of the battle; and selected environmental and tactical environment descriptors (such as type of fortifications, type of tactical scheme, weather conditions, width of front, etc.).
