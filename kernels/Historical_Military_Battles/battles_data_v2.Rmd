@@ -1,0 +1,155 @@
+---
+title: "historical battles"
+author: "Jonathan Bouchet"
+date: "`r Sys.Date()`"
+output:
+ html_document:
+    fig_width: 10
+    fig_height: 7
+    toc: yes
+    number_sections : yes
+    code_folding: show
+---
+
+```{r setup}
+options(width=100)
+knitr::opts_chunk$set(out.width='1000px',dpi=200,message=FALSE,warning=FALSE)
+```
+
+```{r}
+#load packages and csv file
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(ggthemes)
+library(RColorBrewer)
+library(datamodelr)
+```
+
+#Data tables
+```{r}
+#main
+active_periods<-read.csv('active_periods.csv',sep=',',stringsAsFactors=F)
+battle_actors<-read.csv('battle_actors.csv',sep=',',stringsAsFactors=F)
+battle_durations<-read.csv('battle_durations.csv',sep=',',stringsAsFactors=F)
+battles<-read.csv('battles.csv',sep=',',stringsAsFactors=F)
+battle_dyads<-read.csv('battle_dyads.csv',sep=',',stringsAsFactors=F)
+commanders<-read.csv('commanders.csv',sep=',',stringsAsFactors=F)
+enum_surpa<-read.csv('enum_surpa.csv',sep=',',stringsAsFactors=F)
+enum_wina<-read.csv('enum_wina.csv',sep=',',stringsAsFactors=F)
+
+#terrain
+terrain<-read.csv('terrain.csv',sep=',',stringsAsFactors=F)
+enum_terra1<-read.csv('enum_terra1.csv',sep=',',stringsAsFactors=F)
+enum_terra2<-read.csv('enum_terra2.csv',sep=',',stringsAsFactors=F)
+enum_terra3<-read.csv('enum_terra3.csv',sep=',',stringsAsFactors=F)
+
+#weather
+weather<-read.csv('weather.csv',sep=',',stringsAsFactors=F)
+enum_wx1<-read.csv('enum_wx1.csv',sep=',',stringsAsFactors=F)
+enum_wx2<-read.csv('enum_wx2.csv',sep=',',stringsAsFactors=F)
+enum_wx3<-read.csv('enum_wx3.csv',sep=',',stringsAsFactors=F)
+enum_wx4<-read.csv('enum_wx4.csv',sep=',',stringsAsFactors=F)
+enum_wx5<-read.csv('enum_wx5.csv',sep=',',stringsAsFactors=F)
+
+#belligerent
+belligerents<-read.csv('belligerents.csv',sep=',',stringsAsFactors=F)
+enum_reso<-read.csv('enum_reso.csv',sep=',',stringsAsFactors=F)
+enum_pri<-read.csv('enum_pri.csv',sep=',',stringsAsFactors=F)
+```
+
+
+#Entity Relationship diagram(ERD)
+
+Some tables are related together via `primary` --> `foreign` keys like in a SQL Db. This package(`datamodelr`) helps to represent these relationships in a ERD.
+
+```{r}
+df_f <- dm_from_data_frames(battles, battle_actors,battle_dyads,battle_durations,active_periods,commanders,
+                            enum_wina,enum_surpa,
+                            belligerents,enum_pri,enum_reso,
+                            terrain, enum_terra1, enum_terra2, enum_terra3,
+                            weather,enum_wx1,enum_wx2,enum_wx3,enum_wx4,enum_wx5)
+display <- list(accent1 = c('active_periods','battle_actors','battle_durations','battle_dyads','weather','belligerents','terrain'),
+                accent2 = c('enum_wina','enum_surpa'), 
+                accent3 = c('enum_terra1','enum_terra2','enum_terra3'),
+                accent4 = c('enum_wx1','enum_wx2','enum_wx3','enum_wx4','enum_wx5'),
+                accent5 = c('enum_reso','enum_pri'),
+                accent6 = c('commanders'))
+df_f <- dm_set_display(df_f, display)
+df_f <- dm_add_references(df_f, 
+                          battle_actors$isqno == battles$isqno, 
+                          battle_durations$isqno == battles$isqno,
+                          battle_dyads$isqno == battles$isqno,
+                          active_periods$isqno == battles$isqno, 
+                          belligerents$isqno == battles$isqno, 
+                          weather$isqno == battles$isqno,
+                          terrain$isqno == battles$isqno, 
+                          commanders$actors == battle_actors$actor,
+                          battles$wina == enum_wina$value,
+                          battles$surpa == enum_surpa$value,
+                          belligerents$pri1 == enum_pri$value, 
+                          belligerents$pri2 == enum_pri$value,
+                          belligerents$pri3 == enum_pri$value, 
+                          belligerents$reso1 == enum_reso$value, 
+                          belligerents$reso2 == enum_reso$value,
+                          belligerents$reso3 == enum_reso$value,
+                          terrain$terra1 == enum_terra1$value, 
+                          terrain$terra2 == enum_terra2$value, 
+                          terrain$terra3 == enum_terra3$value,
+                          weather$wx1 == enum_wx1$value,
+                          weather$wx2 == enum_wx2$value,
+                          weather$wx3 == enum_wx3$value,
+                          weather$wx4 == enum_wx4$value,
+                          weather$wx5 == enum_wx5$value)
+graph_df <- dm_create_graph(df_f, rankdir = "RL", col_attr = c("column", "type"),view_type = "keys_only")
+dm_render_graph(graph_df)
+```
+
+#Convert the `enum` type
+##Before conversion
+
+`belligerents` table has 6 columns (`sec1`,`sec2`,`sec3`,`reso1`,`reso2`,`reso3`) encoded with 2 `enum` tables
+
+```{r}
+belligerents %>% select(sec1,sec2,sec3,reso1,reso2,reso3) %>% head(5)
+```
+
+And the 2 `enum` tables look like :
+```{r}
+enum_pri
+enum_reso
+```
+
+To match both `belligerents` table and the `enum` tables :
+
+```{r}
+belligerents$sec1<-sapply(belligerents$sec1, function(x) enum_pri$description[match(x, enum_pri$value)])
+belligerents$sec2<-sapply(belligerents$sec2, function(x) enum_pri$description[match(x, enum_pri$value)])
+belligerents$sec3<-sapply(belligerents$sec3, function(x) enum_pri$description[match(x, enum_pri$value)])
+belligerents$reso1<-sapply(belligerents$reso1, function(x) enum_reso$description[match(x, enum_reso$value)])
+belligerents$reso2<-sapply(belligerents$reso2, function(x) enum_reso$description[match(x, enum_reso$value)])
+belligerents$reso3<-sapply(belligerents$reso3, function(x) enum_reso$description[match(x, enum_reso$value)])
+```
+
+```{r}
+belligerents %>% select(sec1,sec2,sec3,reso1,reso2,reso3) %>% head(5)
+```
+
+```{r}
+weather$wx1<-sapply(weather$wx1, function(x) enum_wx1$description[match(x, enum_wx1$value)])
+weather$wx2<-sapply(weather$wx2, function(x) enum_wx2$description[match(x, enum_wx2$value)])
+weather$wx3<-sapply(weather$wx3, function(x) enum_wx3$description[match(x, enum_wx3$value)])
+weather$wx4<-sapply(weather$wx4, function(x) enum_wx4$description[match(x, enum_wx4$value)])
+weather$wx5<-sapply(weather$wx5, function(x) enum_wx5$description[match(x, enum_wx5$value)])
+
+terrain$terra1<-sapply(terrain$terra1, function(x) enum_terra1$description[match(x, enum_terra1$value)]) 
+terrain$terra2<-sapply(terrain$terra2, function(x) enum_terra2$description[match(x, enum_terra2$value)]) 
+terrain$terra3<-sapply(terrain$terra3, function(x) enum_terra3$description[match(x, enum_terra3$value)]) 
+```
+
+<hr>
+<strong>History :</strong>
+
+* _version 1 : initial commit_ 
+
+<hr>
